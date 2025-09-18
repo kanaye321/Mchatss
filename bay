@@ -1,0 +1,7 @@
+@echo off
+REM optionally set env vars so you don't store creds in script:
+REM setx AUTO_LOGIN_USER "your_user"   <-- persistent (careful!)
+REM setx AUTO_LOGIN_PASS "your_pass"
+
+python "%~dp0auto_login_and_go.py"
+pause
