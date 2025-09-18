@@ -1,0 +1,109 @@
+# auto_login_and_chat.py
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import os
+import getpass
+import time
+
+# ------------------ CONFIG (EDIT THIS) ------------------
+login_url = "https://example.com/login"           # page with login form
+chat_room_url = "https://example.com/chat/room/1" # specific chat room URL to open AFTER login
+
+# Locators for login form (use ID, NAME, XPATH, or CSS_SELECTOR)
+# Examples:
+#   (By.ID, "username")
+#   (By.NAME, "email")
+#   (By.XPATH, "//input[@type='password']")
+username_locator = (By.ID, "username")
+password_locator = (By.ID, "password")
+submit_locator   = (By.XPATH, "//button[@type='submit']")
+
+# Locator for the chat input box on the chat room page (where you type messages).
+# Example common locators:
+#   (By.CSS_SELECTOR, "textarea.chat-input")
+#   (By.XPATH, "//div[@contenteditable='true']")    # for contenteditable chat boxes
+#   (By.ID, "msg-input")
+chat_input_locator = (By.CSS_SELECTOR, "textarea.chat-input")
+
+# If the chat input is contentEditable (div) rather than <input>/<textarea>, set this True
+CHAT_IS_CONTENTEDITABLE = False
+
+# If you want the script to press Enter to send the message after typing "A"
+PRESS_ENTER_TO_SEND = True
+# ---------------------------------------------------------
+
+# Get credentials: prefer environment variables, otherwise prompt
+username = os.getenv("AUTO_LOGIN_USER") or input("Username: ")
+password = os.getenv("AUTO_LOGIN_PASS") or getpass.getpass("Password: ")
+
+# Setup Chrome
+options = webdriver.ChromeOptions()
+options.add_argument("--start-maximized")
+# options.add_argument("--headless")  # uncomment if you want headless mode (no browser UI)
+
+driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+wait = WebDriverWait(driver, 20)
+
+try:
+    # 1) Go to login page
+    driver.get(login_url)
+
+    # 2) Fill username
+    wait.until(EC.presence_of_element_located(username_locator))
+    el_user = driver.find_element(*username_locator)
+    el_user.clear()
+    el_user.send_keys(username)
+
+    # 3) Fill password
+    wait.until(EC.presence_of_element_located(password_locator))
+    el_pass = driver.find_element(*password_locator)
+    el_pass.clear()
+    el_pass.send_keys(password)
+
+    # 4) Submit login
+    # prefer clicking a button if possible
+    try:
+        wait.until(EC.element_to_be_clickable(submit_locator))
+        driver.find_element(*submit_locator).click()
+    except Exception:
+        # fallback: send Enter from the password field
+        el_pass.send_keys(Keys.ENTER)
+
+    # 5) Wait for login to complete.
+    # Simple heuristic: wait until current_url is different from login_url, or wait a few seconds.
+    wait.until(lambda d: d.current_url != login_url)
+    time.sleep(1)  # small buffer
+
+    # 6) Navigate to the specific chat-room page
+    driver.get(chat_room_url)
+
+    # 7) Wait for chat input to be present & interactable
+    wait.until(EC.presence_of_element_located(chat_input_locator))
+    # For inputs/textarea:
+    if not CHAT_IS_CONTENTEDITABLE:
+        chat_input = wait.until(EC.element_to_be_clickable(chat_input_locator))
+        chat_input.click()
+        # type 'A'
+        chat_input.send_keys("A")
+        if PRESS_ENTER_TO_SEND:
+            chat_input.send_keys(Keys.ENTER)
+    else:
+        # For contenteditable divs (some chat boxes)
+        chat_div = wait.until(EC.element_to_be_clickable(chat_input_locator))
+        chat_div.click()
+        # Using JS to insert text into contenteditable reliably
+        driver.execute_script("arguments[0].innerText = arguments[1];", chat_div, "A")
+        if PRESS_ENTER_TO_SEND:
+            chat_div.send_keys(Keys.ENTER)
+
+    print("Typed 'A' into chat box (and sent it if configured).")
+
+    # Keep browser open for a short while so you can confirm results (adjust or remove)
+    time.sleep(6)
+
+finally:
+    driver.quit()
