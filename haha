@@ -1,0 +1,27 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
+# --- CONFIG ---
+chat_url = "https://example.com/chatroom"   # your chat room link
+chat_input_locator = (By.CSS_SELECTOR, "textarea.chat-input")  # adjust selector
+message = "A"
+# -------------
+
+driver = webdriver.Chrome(ChromeDriverManager().install())
+driver.get(chat_url)
+
+# wait for page to load
+time.sleep(5)
+
+# Find chat input and type message
+chatbox = driver.find_element(*chat_input_locator)
+chatbox.click()
+chatbox.send_keys(message)
+chatbox.send_keys(Keys.ENTER)
+
+print("Message sent.")
+time.sleep(3)
+driver.quit()
